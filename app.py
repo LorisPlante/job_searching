@@ -1,37 +1,31 @@
 from PySide6.QtCore import *
 from PySide6.QtWidgets import *
 from PySide6.QtGui import *
-
 import sys
-
 import sqlite3
-
-
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setGeometry(20,50,800,700)
+        self.setGeometry(20, 50, 800, 700)
+        self.setWindowTitle("Job searching")
 
         # Récupérer les données depuis la base de données
         data = get_data_from_database()
 
         # Création du tableau avec les données
-        table = MyTable(data)
+        self.table = MyTable(data)
 
         self.new_window = None
-
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
-
         main_layout = QVBoxLayout()
         central_widget.setLayout(main_layout)
 
-
-        button_layout = QHBoxLayout()  
-        main_layout.addLayout(button_layout)    
+        button_layout = QHBoxLayout()
+        main_layout.addLayout(button_layout)
 
         btn_all = QPushButton("Tout", self)
         btn_stage = QPushButton("Stage", self)
@@ -42,27 +36,23 @@ class MainWindow(QMainWindow):
         button_layout.addWidget(btn_all)
         button_layout.addWidget(btn_stage)
         button_layout.addWidget(btn_alternance)
-        # btn_alternance.clicked.connect(self.get_alternance_from_database)
         button_layout.addWidget(btn_emploi)
-
         button_layout.addWidget(btn_ajout)
         btn_ajout.clicked.connect(self.open_new_window)
 
-
-        main_layout.addWidget(table)
+        main_layout.addWidget(self.table)
 
     def open_new_window(self):
-        # Fonction pour ouvrir une nouvelle fenêtre
-        self.new_window = AddWindow()
+        self.new_window = AddWindow(self.table)
         self.new_window.show()
 
 class AddWindow(QWidget):
-    def __init__(self):
+    def __init__(self, table):
         super().__init__()
-        # Configuration de la nouvelle fenêtre
+        self.table = table
         self.setWindowTitle('Ajouter un job')
         self.setGeometry(100, 100, 400, 400)
-        
+
         self.job_type_text = QLineEdit(self)
         self.job_type_text.setPlaceholderText("Type de job (Alternance / Stage / Emploi)")
 
@@ -86,7 +76,6 @@ class AddWindow(QWidget):
 
         btn_ajouter = QPushButton("AJOUTER UN JOB", self)
 
-        # Layout pour organiser les éléments dans la fenêtre
         ajout_layout = QVBoxLayout()
 
         ajout_layout.addWidget(self.job_type_text)
@@ -102,28 +91,38 @@ class AddWindow(QWidget):
 
         btn_ajouter.clicked.connect(self.ajout_a_db)
 
-
     def ajout_a_db(self):
         conn = sqlite3.connect('database.db')
         cursor = conn.cursor()
         query = "INSERT INTO jobs (job_type, job_status, job_date, job_compagny_name, job_name, job_location, job_description) VALUES (?, ?, ?, ?, ?, ?, ?)"
         cursor.execute(query, (self.job_type_text.text(), self.job_status_text.text(), self.job_date_text.text(), self.job_compagny_text.text(), self.job_name_text.text(), self.job_location_text.text(), self.job_description_text.toPlainText()))
-        print("good")
         conn.commit()
+        conn.close()
+
+        # Update the table in the main window
+        self.table.update_table()
 
 class MyTable(QTableWidget):
     def __init__(self, data):
         super().__init__()
 
-        # Configuration du tableau
         self.setRowCount(len(data))
         self.setColumnCount(len(data[0]))
 
-        # Remplissage du tableau avec les données
+        self.update_data(data)
+
+    def update_data(self, data):
+        self.setRowCount(len(data))
+        self.setColumnCount(len(data[0]))
+
         for row_index, row_data in enumerate(data):
             for col_index, cell_data in enumerate(row_data):
                 item = QTableWidgetItem(str(cell_data))
                 self.setItem(row_index, col_index, item)
+
+    def update_table(self):
+        data = get_data_from_database()
+        self.update_data(data)
 
 def get_data_from_database():
     conn = sqlite3.connect('database.db')
@@ -133,40 +132,7 @@ def get_data_from_database():
     conn.close()
     return data
 
-# def get_alternance_from_database():
-#     conn = sqlite3.connect('database.db')
-#     cursor = conn.cursor()
-#     cursor.execute('SELECT job_type, job_status, job_date, job_compagny_name, job_name, job_location, job_description FROM jobs WHERE job_type = "Alternance"')
-#     data = cursor.fetchall()
-#     conn.close()
-#     return data
-
-def get_alternance_from_database():
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    cursor.execute("SELECT job_type, job_status, job_date, job_compagny_name, job_name, job_location, job_description FROM jobs WHERE job_type = 'Alternance'")
-    data = cursor.fetchall()
-    conn.close()
-    return data
-
-
-    
-
-
-
-
-
-
-
-
-
-        
-
 app = QApplication(sys.argv)
-
 window = MainWindow()
-window.setWindowTitle("Job searching")
 window.show()
-
 app.exec()
-
